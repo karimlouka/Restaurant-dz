@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>لوحة تحكم الأطباق 🍽️</title>
+  <title>لوحة تحكم الأطباق 🍽</title>
   <style>
     body {
       font-family: Tahoma, sans-serif;
@@ -56,7 +56,7 @@
   </style>
 </head>
 <body>
-
+  <!-- صفحة تسجيل الدخول -->
   <div id="login">
     <h2>🔐 تسجيل الدخول</h2>
     <input type="password" id="passwordInput" placeholder="أدخل كلمة المرور" />
@@ -64,9 +64,9 @@
     <p id="error" style="color:red;"></p>
   </div>
 
+  <!-- لوحة التحكم -->
   <div id="dashboard" style="display:none;">
-    <h1>لوحة تحكم الأطباق 🍽️</h1>
-
+    <h1>لوحة تحكم الأطباق 🍽</h1>
     <table id="dishesTable">
       <thead>
         <tr>
@@ -91,64 +91,10 @@
   </div>
 
   <script>
-    // 🔑 غيّر كلمة المرور هنا
+    // 🔑 كلمة المرور
     const ADMIN_PASSWORD = "kalilinux";
 
     function checkPassword() {
       const input = document.getElementById("passwordInput").value;
       if (input === ADMIN_PASSWORD) {
-        document.getElementById("login").style.display = "none";
-        document.getElementById("dashboard").style.display = "block";
-        loadDishes();
-      } else {
-        document.getElementById("error").innerText = "❌ كلمة المرور غير صحيحة";
-      }
-    }
-
-    // 📡 رابط الـ Backend
-    const API_URL = "https://restaurant-dz.onrender.com"; // ⚠️ غيّر هذا
-
-    async function loadDishes() {
-      const res = await fetch(API_URL);
-      const data = await res.json();
-      const tbody = document.querySelector("#dishesTable tbody");
-      tbody.innerHTML = "";
-      data.forEach(dish => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = 
-          <td>${dish.name}</td>
-          <td>${dish.description || ""}</td>
-          <td>${dish.price} دج</td>
-          <td>${dish.available ? "✅" : "❌"}</td>
-          <td>
-            <button onclick="deleteDish(${dish.id})">🗑 حذف</button>
-          </td>
-        ;
-        tbody.appendChild(tr);
-      });
-    }
-
-    async function deleteDish(id) {
-      if (confirm("هل أنت متأكد من حذف هذا الطبق؟")) {
-        await fetch(API_URL + "/" + id, { method: "DELETE" });
-        loadDishes();
-      }
-    }
-
-    document.getElementById("addDishForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const name = document.getElementById("name").value;
-      const description = document.getElementById("description").value;
-      const price = document.getElementById("price").value;
-      const available = document.getElementById("available").checked;
-      await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, price, available })
-      });
-      e.target.reset();
-      loadDishes();
-    });
-  </script>
-</body>
-</html>
+        document.getElementById("login").style
