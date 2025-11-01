@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { fetchData, sendData, API_ENDPOINTS } from '@/api/apiConfig';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,68 +24,8 @@ interface User {
   lastOrder: string;
 }
 
-const initialUsers: User[] = [
-  {
-    id: 1,
-    name: 'أحمد محمد',
-    email: 'ahmed@example.com',
-    phone: '+216 95 123 456',
-    address: 'تونس، الحمامات',
-    joinDate: '2024-01-15',
-    totalOrders: 12,
-    totalSpent: 450,
-    status: 'active',
-    lastOrder: '2025-11-01',
-  },
-  {
-    id: 2,
-    name: 'فاطمة علي',
-    email: 'fatima@example.com',
-    phone: '+216 92 654 321',
-    address: 'تونس، المنزه',
-    joinDate: '2024-02-20',
-    totalOrders: 8,
-    totalSpent: 320,
-    status: 'active',
-    lastOrder: '2025-10-28',
-  },
-  {
-    id: 3,
-    name: 'محمود حسن',
-    email: 'mahmoud@example.com',
-    phone: '+216 98 789 012',
-    address: 'تونس، الأرينة',
-    joinDate: '2024-03-10',
-    totalOrders: 5,
-    totalSpent: 180,
-    status: 'inactive',
-    lastOrder: '2025-09-15',
-  },
-  {
-    id: 4,
-    name: 'ليلى محمود',
-    email: 'leila@example.com',
-    phone: '+216 91 345 678',
-    address: 'تونس، الكرم',
-    joinDate: '2024-04-05',
-    totalOrders: 15,
-    totalSpent: 620,
-    status: 'active',
-    lastOrder: '2025-11-01',
-  },
-  {
-    id: 5,
-    name: 'علي محمد',
-    email: 'ali@example.com',
-    phone: '+216 90 111 222',
-    address: 'تونس، سيدي بوسعيد',
-    joinDate: '2024-05-12',
-    totalOrders: 3,
-    totalSpent: 95,
-    status: 'blocked',
-    lastOrder: '2025-08-20',
-  },
-];
+// تم حذف البيانات الوهمية initialUsers
+
 
 const statusConfig = {
   active: { label: 'نشط', color: 'bg-green-100 text-green-800' },
@@ -93,7 +34,29 @@ const statusConfig = {
 };
 
 export default function UsersManagement() {
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchUsers = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await fetchData<User[]>(API_ENDPOINTS.users);
+      setUsers(data);
+      toast.success('تم تحميل قائمة المستخدمين بنجاح');
+    } catch (err) {
+      console.error('Failed to fetch users:', err);
+      setError('فشل في تحميل المستخدمين من الخادم.');
+      toast.error('فشل في تحميل المستخدمين.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -109,16 +72,31 @@ export default function UsersManagement() {
     setIsDetailsOpen(true);
   };
 
-  const handleToggleStatus = (userId: number, newStatus: 'active' | 'inactive' | 'blocked') => {
-    setUsers(users.map(u =>
-      u.id === userId ? { ...u, status: newStatus } : u
-    ));
-    toast.success('تم تحديث حالة المستخدم');
+  const handleToggleStatus = async (user: User, newStatus: 'active' | 'inactive' | 'blocked') => {
+    try {
+      // Send update request to API
+      await sendData<User>(`${API_ENDPOINTS.users}/${user.id}`, 'PUT', { ...user, status: newStatus });
+      
+      // Update local state and show success message
+      setUsers(users.map(u =>
+        u.id === user.id ? { ...u, status: newStatus } : u
+      ));
+      toast.success('تم تحديث حالة المستخدم بنجاح');
+    } catch (err) {
+      console.error('Failed to update user status:', err);
+      toast.error(`فشل في تحديث حالة المستخدم: ${err instanceof Error ? err.message : 'خطأ غير معروف'}`);
+    }
   };
 
-  const handleDeleteUser = (userId: number) => {
-    setUsers(users.filter(u => u.id !== userId));
-    toast.success('تم حذف المستخدم بنجاح');
+  const handleDeleteUser = async (userId: number) => {
+    try {
+      await sendData<{}>(`${API_ENDPOINTS.users}/${userId}`, 'DELETE');
+      toast.success('تم حذف المستخدم بنجاح');
+      fetchUsers(); // Refetch data
+    } catch (err) {
+      console.error('Failed to delete user:', err);
+      toast.error(`فشل في حذف المستخدم: ${err instanceof Error ? err.message : 'خطأ غير معروف'}`);
+    }
   };
 
   const stats = {
@@ -132,6 +110,17 @@ export default function UsersManagement() {
 
   return (
     <div className="space-y-6">
+      {isLoading && (
+        <div className="p-6 text-center text-blue-500">
+          جاري تحميل المستخدمين...
+        </div>
+      )}
+      {error && (
+        <div className="p-6 text-center text-red-500">
+          {error}
+        </div>
+      )}
+      {(!isLoading && !error) && (
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="border-0 shadow-sm">
@@ -218,11 +207,21 @@ export default function UsersManagement() {
                         <TableCell className="text-sm">{user.phone}</TableCell>
                         <TableCell className="text-center font-semibold">{user.totalOrders}</TableCell>
                         <TableCell className="font-semibold text-blue-600">{user.totalSpent} د.ت</TableCell>
-                        <TableCell>
-                          <Badge className={`${statusInfo.color} border-0 cursor-pointer`}>
-                            {statusInfo.label}
-                          </Badge>
-                        </TableCell>
+	                        <TableCell>
+	                          <Select
+	                            value={user.status}
+	                            onValueChange={(value) => handleToggleStatus(user, value as 'active' | 'inactive' | 'blocked')}
+	                          >
+	                            <SelectTrigger className={`w-32 text-sm font-medium border-0 ${statusInfo.color}`}>
+	                              <SelectValue />
+	                            </SelectTrigger>
+	                            <SelectContent>
+	                              <SelectItem value="active">نشط</SelectItem>
+	                              <SelectItem value="inactive">غير نشط</SelectItem>
+	                              <SelectItem value="blocked">محظور</SelectItem>
+	                            </SelectContent>
+	                          </Select>
+	                        </TableCell>
                         <TableCell className="text-center">
                           <div className="flex justify-center gap-2">
                             <Dialog open={isDetailsOpen && selectedUser?.id === user.id} onOpenChange={setIsDetailsOpen}>
@@ -341,7 +340,7 @@ export default function UsersManagement() {
                                 </AlertDialogHeader>
                                 <div className="flex gap-2">
                                   <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteUser(user.id)} className="bg-red-600 hover:bg-red-700">
+	                              <AlertDialogAction onClick={() => handleDeleteUser(user.id)} className="bg-red-600 hover:bg-red-700">
                                     حذف
                                   </AlertDialogAction>
                                 </div>
@@ -368,5 +367,6 @@ export default function UsersManagement() {
         </CardContent>
       </Card>
     </div>
+  )}
   );
 }

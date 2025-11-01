@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { fetchData, sendData, API_ENDPOINTS } from '@/api/apiConfig';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,38 +22,30 @@ interface Dish {
   available: boolean;
 }
 
-const initialDishes: Dish[] = [
-  {
-    id: 1,
-    name: 'بيتزا مارغريتا',
-    description: 'بيتزا كلاسيكية بالجبن والطماطم',
-    price: 25,
-    category: 'بيتزا',
-    image: 'https://via.placeholder.com/100',
-    available: true,
-  },
-  {
-    id: 2,
-    name: 'باستا كاربونارا',
-    description: 'باستا إيطالية بصلصة الكريمة والبيض',
-    price: 20,
-    category: 'باستا',
-    image: 'https://via.placeholder.com/100',
-    available: true,
-  },
-  {
-    id: 3,
-    name: 'سلطة يونانية',
-    description: 'سلطة طازة بالجبن الأبيض والزيتون',
-    price: 15,
-    category: 'سلطات',
-    image: 'https://via.placeholder.com/100',
-    available: false,
-  },
-];
-
 export default function DishesManagement() {
-  const [dishes, setDishes] = useState<Dish[]>(initialDishes);
+  const [dishes, setDishes] = useState<Dish[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchDishes = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await fetchData<Dish[]>(API_ENDPOINTS.dishes);
+      setDishes(data);
+      toast.success('تم تحميل قائمة الأطباق بنجاح');
+    } catch (err) {
+      console.error('Failed to fetch dishes:', err);
+      setError('فشل في تحميل الأطباق من الخادم.');
+      toast.error('فشل في تحميل الأطباق.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDishes();
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [editingDish, setEditingDish] = useState<Dish | null>(null);
@@ -92,57 +85,78 @@ export default function DishesManagement() {
     setIsOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name || !formData.price || !formData.category) {
       toast.error('يرجى ملء جميع الحقول المطلوبة');
       return;
     }
 
-    if (editingDish) {
-      setDishes(dishes.map(d =>
-        d.id === editingDish.id
-          ? {
-              ...d,
-              name: formData.name,
-              description: formData.description,
-              price: parseFloat(formData.price),
-              category: formData.category,
-              available: formData.available,
-            }
-          : d
-      ));
-      toast.success('تم تحديث الطبق بنجاح');
-    } else {
-      const newDish: Dish = {
-        id: Math.max(...dishes.map(d => d.id), 0) + 1,
-        name: formData.name,
-        description: formData.description,
-        price: parseFloat(formData.price),
-        category: formData.category,
-        image: 'https://via.placeholder.com/100',
-        available: formData.available,
-      };
-      setDishes([...dishes, newDish]);
-      toast.success('تم إضافة الطبق بنجاح');
+    const dishData = {
+      name: formData.name,
+      description: formData.description,
+      price: parseFloat(formData.price),
+      category: formData.category,
+      available: formData.available,
+      // يجب أن يتم التعامل مع الصورة في الـ Backend
+      image: editingDish?.image || 'https://via.placeholder.com/100',
+    };
+
+    try {
+      if (editingDish) {
+        // Update existing dish
+        await sendData<Dish>(`${API_ENDPOINTS.dishes}/${editingDish.id}`, 'PUT', dishData);
+        toast.success('تم تحديث الطبق بنجاح');
+      } else {
+        // Create new dish
+        await sendData<Dish>(API_ENDPOINTS.dishes, 'POST', dishData);
+        toast.success('تم إضافة الطبق بنجاح');
+      }
+      
+      // Refetch data to update the list
+      fetchDishes();
+      setIsOpen(false);
+    } catch (err) {
+      console.error('Failed to save dish:', err);
+      toast.error(`فشل في حفظ الطبق: ${err instanceof Error ? err.message : 'خطأ غير معروف'}`);
     }
-
-    setIsOpen(false);
   };
 
-  const handleDelete = (id: number) => {
-    setDishes(dishes.filter(d => d.id !== id));
-    toast.success('تم حذف الطبق بنجاح');
+  const handleDelete = async (id: number) => {
+    try {
+      await sendData<{}>(`${API_ENDPOINTS.dishes}/${id}`, 'DELETE');
+      toast.success('تم حذف الطبق بنجاح');
+      fetchDishes(); // Refetch data
+    } catch (err) {
+      console.error('Failed to delete dish:', err);
+      toast.error(`فشل في حذف الطبق: ${err instanceof Error ? err.message : 'خطأ غير معروف'}`);
+    }
   };
 
-  const handleToggleAvailability = (id: number) => {
-    setDishes(dishes.map(d =>
-      d.id === id ? { ...d, available: !d.available } : d
-    ));
-    toast.success('تم تحديث حالة الطبق');
+  const handleToggleAvailability = async (dish: Dish) => {
+    const newAvailability = !dish.available;
+    try {
+      await sendData<Dish>(`${API_ENDPOINTS.dishes}/${dish.id}`, 'PUT', { ...dish, available: newAvailability });
+      toast.success('تم تحديث حالة الطبق بنجاح');
+      fetchDishes(); // Refetch data
+    } catch (err) {
+      console.error('Failed to toggle availability:', err);
+      toast.error(`فشل في تحديث حالة الطبق: ${err instanceof Error ? err.message : 'خطأ غير معروف'}`);
+    }
   };
 
-  return (
-    <Card className="border-0 shadow-lg">
+	  return (
+	    <Card className="border-0 shadow-lg">
+	      {isLoading && (
+	        <div className="p-6 text-center text-blue-500">
+	          جاري تحميل الأطباق...
+	        </div>
+	      )}
+	      {error && (
+	        <div className="p-6 text-center text-red-500">
+	          {error}
+	        </div>
+	      )}
+	      {(!isLoading && !error) && (
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
@@ -270,9 +284,9 @@ export default function DishesManagement() {
                     <TableCell>{dish.category}</TableCell>
                     <TableCell>{dish.price} د.ت</TableCell>
                     <TableCell>
-                      <button
-                        onClick={() => handleToggleAvailability(dish.id)}
-                        className={`px-3 py-1 rounded-full text-sm font-medium cursor-pointer transition-colors ${
+	                      <button
+	                        onClick={() => handleToggleAvailability(dish)}
+	                        className={`px-3 py-1 rounded-full text-sm font-medium cursor-pointer transition-colors ${
                           dish.available
                             ? 'bg-green-100 text-green-800 hover:bg-green-200'
                             : 'bg-red-100 text-red-800 hover:bg-red-200'
@@ -283,12 +297,12 @@ export default function DishesManagement() {
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex justify-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenDialog(dish)}
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                        >
+	                        <Button
+	                          variant="ghost"
+	                          size="sm"
+	                          onClick={() => handleOpenDialog(dish)}
+	                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+	                        >
                           <Edit2 className="h-4 w-4" />
                         </Button>
                         <AlertDialog>
@@ -310,7 +324,7 @@ export default function DishesManagement() {
                             </AlertDialogHeader>
                             <div className="flex gap-2">
                               <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(dish.id)} className="bg-red-600 hover:bg-red-700">
+	                              <AlertDialogAction onClick={() => handleDelete(dish.id)} className="bg-red-600 hover:bg-red-700">
                                 حذف
                               </AlertDialogAction>
                             </div>
@@ -331,6 +345,7 @@ export default function DishesManagement() {
           </p>
         </div>
       </CardContent>
-    </Card>
-  );
-}
+	    </Card>
+	  )}
+	  );
+	}

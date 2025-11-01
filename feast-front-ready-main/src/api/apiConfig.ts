@@ -41,7 +41,7 @@ export async function sendData<T>(endpoint: string, method: 'POST' | 'PUT' | 'DE
 
 // مسارات API المفترضة (قد تحتاج لتعديلها حسب الـ Backend الفعلي)
 export const API_ENDPOINTS = {
-  dishes: '/api/dishes',
-  orders: '/api/orders',
-  users: '/api/users',
+  dishes: '/api/v1/dishes',
+  orders: '/api/v1/orders',
+  users: '/api/v1/users',
 };

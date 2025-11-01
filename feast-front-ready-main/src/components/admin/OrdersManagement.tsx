@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { fetchData, sendData, API_ENDPOINTS } from '@/api/apiConfig';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,52 +23,8 @@ interface Order {
   notes: string;
 }
 
-const initialOrders: Order[] = [
-  {
-    id: 1,
-    orderNumber: '#ORD-001',
-    customerName: 'أحمد محمد',
-    customerPhone: '+216 95 123 456',
-    items: 'بيتزا مارغريتا × 2، عصير برتقال × 2',
-    totalPrice: 65,
-    status: 'confirmed',
-    createdAt: '2025-11-01 14:30',
-    notes: 'بدون بصل',
-  },
-  {
-    id: 2,
-    orderNumber: '#ORD-002',
-    customerName: 'فاطمة علي',
-    customerPhone: '+216 92 654 321',
-    items: 'باستا كاربونارا × 1، سلطة × 1',
-    totalPrice: 40,
-    status: 'preparing',
-    createdAt: '2025-11-01 14:45',
-    notes: '',
-  },
-  {
-    id: 3,
-    orderNumber: '#ORD-003',
-    customerName: 'محمود حسن',
-    customerPhone: '+216 98 789 012',
-    items: 'بيتزا حارة × 1، مشروب × 1',
-    totalPrice: 35,
-    status: 'ready',
-    createdAt: '2025-11-01 15:00',
-    notes: 'توصيل سريع',
-  },
-  {
-    id: 4,
-    orderNumber: '#ORD-004',
-    customerName: 'ليلى محمود',
-    customerPhone: '+216 91 345 678',
-    items: 'حلويات × 3',
-    totalPrice: 25,
-    status: 'pending',
-    createdAt: '2025-11-01 15:15',
-    notes: '',
-  },
-];
+// تم حذف البيانات الوهمية initialOrders
+
 
 const statusConfig = {
   pending: { label: 'قيد الانتظار', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
@@ -79,7 +36,29 @@ const statusConfig = {
 };
 
 export default function OrdersManagement() {
-  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchOrders = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await fetchData<Order[]>(API_ENDPOINTS.orders);
+      setOrders(data);
+      toast.success('تم تحميل قائمة الطلبات بنجاح');
+    } catch (err) {
+      console.error('Failed to fetch orders:', err);
+      setError('فشل في تحميل الطلبات من الخادم.');
+      toast.error('فشل في تحميل الطلبات.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -96,13 +75,28 @@ export default function OrdersManagement() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleStatusChange = (orderId: number, newStatus: string) => {
-    setOrders(orders.map(order =>
-      order.id === orderId
-        ? { ...order, status: newStatus as Order['status'] }
-        : order
-    ));
-    toast.success('تم تحديث حالة الطلب');
+  const handleStatusChange = async (orderId: number, newStatus: Order['status']) => {
+    try {
+      // Find the order to get its current data
+      const orderToUpdate = orders.find(o => o.id === orderId);
+      if (!orderToUpdate) {
+        throw new Error('الطلب غير موجود');
+      }
+
+      // Send update request to API
+      await sendData<Order>(`${API_ENDPOINTS.orders}/${orderId}`, 'PUT', { ...orderToUpdate, status: newStatus });
+      
+      // Update local state and show success message
+      setOrders(orders.map(order =>
+        order.id === orderId
+          ? { ...order, status: newStatus }
+          : order
+      ));
+      toast.success('تم تحديث حالة الطلب بنجاح');
+    } catch (err) {
+      console.error('Failed to update order status:', err);
+      toast.error(`فشل في تحديث حالة الطلب: ${err instanceof Error ? err.message : 'خطأ غير معروف'}`);
+    }
   };
 
   const handleViewDetails = (order: Order) => {
@@ -125,6 +119,17 @@ export default function OrdersManagement() {
 
   return (
     <div className="space-y-6">
+      {isLoading && (
+        <div className="p-6 text-center text-blue-500">
+          جاري تحميل الطلبات...
+        </div>
+      )}
+      {error && (
+        <div className="p-6 text-center text-red-500">
+          {error}
+        </div>
+      )}
+      {(!isLoading && !error) && (
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <Card className="border-0 shadow-sm">
@@ -243,10 +248,10 @@ export default function OrdersManagement() {
                         <TableCell className="text-sm">{order.customerPhone}</TableCell>
                         <TableCell className="font-semibold">{order.totalPrice} د.ت</TableCell>
                         <TableCell>
-                          <Select
-                            value={order.status}
-                            onValueChange={(value) => handleStatusChange(order.id, value)}
-                          >
+                            <Select
+                              value={order.status}
+                              onValueChange={(value) => handleStatusChange(order.id, value as Order['status'])}
+                            >
                             <SelectTrigger className={`w-32 text-sm font-medium border-0 ${statusInfo.color}`}>
                               <SelectValue />
                             </SelectTrigger>
@@ -325,5 +330,6 @@ export default function OrdersManagement() {
         </CardContent>
       </Card>
     </div>
+  )}
   );
 }
