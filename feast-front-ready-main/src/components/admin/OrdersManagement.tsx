@@ -267,58 +267,9 @@ export default function OrdersManagement() {
                         </TableCell>
                         <TableCell className="text-sm text-slate-600">{order.createdAt}</TableCell>
                         <TableCell className="text-center">
-                          <Dialog open={isDetailsOpen && selectedOrder?.id === order.id} onOpenChange={setIsDetailsOpen}>
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleViewDetails(order)}
-                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            {selectedOrder?.id === order.id && (
-                              <DialogContent className="max-w-md">
-                                <DialogHeader>
-                                  <DialogTitle>تفاصيل الطلب {selectedOrder.orderNumber}</DialogTitle>
-                                  <DialogDescription>معلومات كاملة عن الطلب</DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <Label className="text-slate-600">اسم العميل</Label>
-                                      <p className="font-semibold">{selectedOrder.customerName}</p>
-                                    </div>
-                                    <div>
-                                      <Label className="text-slate-600">الهاتف</Label>
-                                      <p className="font-semibold">{selectedOrder.customerPhone}</p>
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <Label className="text-slate-600">المنتجات</Label>
-                                    <p className="font-semibold text-sm">{selectedOrder.items}</p>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <Label className="text-slate-600">الإجمالي</Label>
-                                      <p className="font-bold text-lg text-blue-600">{selectedOrder.totalPrice} د.ت</p>
-                                    </div>
-                                    <div>
-                                      <Label className="text-slate-600">الوقت</Label>
-                                      <p className="font-semibold">{selectedOrder.createdAt}</p>
-                                    </div>
-                                  </div>
-                                  {selectedOrder.notes && (
-                                    <div>
-                                      <Label className="text-slate-600">ملاحظات</Label>
-                                      <p className="text-sm bg-yellow-50 p-2 rounded border border-yellow-200">{selectedOrder.notes}</p>
-                                    </div>
-                                  )}
-                                </div>
-                              </DialogContent>
-                            )}
-                          </Dialog>
+                          <Button variant="ghost" size="icon" onClick={() => handleViewDetails(order)}>
+                            <Eye className="h-4 w-4 text-blue-500" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -329,7 +280,66 @@ export default function OrdersManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Order Details Dialog */}
+      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>تفاصيل الطلب #{selectedOrder?.orderNumber}</DialogTitle>
+            <DialogDescription>
+              معلومات مفصلة عن الطلب وحالة التوصيل.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedOrder && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label htmlFor="customer" className="text-right">
+                  العميل
+                </Label>
+                <Input id="customer" value={selectedOrder.customerName} readOnly className="col-span-2" />
+              </div>
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label htmlFor="phone" className="text-right">
+                  الهاتف
+                </Label>
+                <Input id="phone" value={selectedOrder.customerPhone} readOnly className="col-span-2" />
+              </div>
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label htmlFor="total" className="text-right">
+                  الإجمالي
+                </Label>
+                <Input id="total" value={`${selectedOrder.totalPrice} د.ت`} readOnly className="col-span-2" />
+              </div>
+              <div className="grid grid-cols-3 items-start gap-4">
+                <Label htmlFor="items" className="text-right pt-2">
+                  الأصناف
+                </Label>
+                <div className="col-span-2 space-y-2">
+                  {selectedOrder.items.split(',').map((item, index) => (
+                    <Badge key={index} variant="secondary" className="mr-2">
+                      {item.trim()}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 items-start gap-4">
+                <Label htmlFor="notes" className="text-right pt-2">
+                  ملاحظات
+                </Label>
+                <textarea id="notes" value={selectedOrder.notes || 'لا توجد ملاحظات'} readOnly className="col-span-2 border rounded-md p-2 text-sm h-20 resize-none" />
+              </div>
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label htmlFor="status" className="text-right">
+                  الحالة
+                </Label>
+                <Badge className={`col-span-2 w-fit ${statusConfig[selectedOrder.status].color}`}>
+                  {statusConfig[selectedOrder.status].label}
+                </Badge>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
-  )}
   );
 }
