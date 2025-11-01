@@ -11,6 +11,7 @@ import Menu from "./pages/Menu";
 import Reservation from "./pages/Reservation";
 import Delivery from "./pages/Delivery";
 import NotFound from "./pages/NotFound";
+import AdminDashboard from "./pages/AdminDashboard"; // <--- تم الإضافة
 
 const queryClient = new QueryClient();
 
@@ -22,13 +23,26 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Navigation />
             <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/menu" element={<Menu />} />
-              <Route path="/reservation" element={<Reservation />} />
-              <Route path="/delivery" element={<Delivery />} />
-              <Route path="*" element={<NotFound />} />
+              {/* المسارات الرئيسية للموقع */}
+              <Route
+                path="/*"
+                element={
+                  <>
+                    <Navigation />
+                    <Routes>
+                      <Route path="/" element={<Index />} />
+                      <Route path="/menu" element={<Menu />} />
+                      <Route path="/reservation" element={<Reservation />} />
+                      <Route path="/delivery" element={<Delivery />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </>
+                }
+              />
+
+              {/* مسار لوحة التحكم الإدارية (بدون Navigation) */}
+              <Route path="/admin" element={<AdminDashboard />} /> {/* <--- تم الإضافة */}
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
